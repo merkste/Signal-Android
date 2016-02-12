@@ -1,7 +1,10 @@
 package org.thoughtcrime.securesms.database;
 
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
+import org.thoughtcrime.securesms.database.model.MessageRecord;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -43,110 +46,15 @@ public class XmlBackup {
       if (parser.getEventType() != XmlPullParser.START_TAG) {
         continue;
       }
-
-      String name = parser.getName();
-
-      if (!name.equalsIgnoreCase("sms")) {
+      if (!parser.getName().equalsIgnoreCase("sms")) {
         continue;
       }
-
-      int attributeCount = parser.getAttributeCount();
-
-      if (attributeCount <= 0) {
+      if (parser.getAttributeCount() <= 0) {
         continue;
       }
-
-      XmlBackupItem item = new XmlBackupItem();
-
-      for (int i=0;i<attributeCount;i++) {
-        String attributeName = parser.getAttributeName(i);
-
-        if      (attributeName.equals(PROTOCOL      )) item.protocol      = Integer.parseInt(parser.getAttributeValue(i));
-        else if (attributeName.equals(ADDRESS       )) item.address       = parser.getAttributeValue(i);
-        else if (attributeName.equals(THREAD_ADDRESS)) item.threadAddress = parser.getAttributeValue(i);
-        else if (attributeName.equals(DATE          )) item.date          = Long.parseLong(parser.getAttributeValue(i));
-        else if (attributeName.equals(TYPE          )) item.type          = Integer.parseInt(parser.getAttributeValue(i));
-        else if (attributeName.equals(SUBJECT       )) item.subject       = parser.getAttributeValue(i);
-        else if (attributeName.equals(BODY          )) item.body          = parser.getAttributeValue(i);
-        else if (attributeName.equals(SERVICE_CENTER)) item.serviceCenter = parser.getAttributeValue(i);
-        else if (attributeName.equals(READ          )) item.read          = Integer.parseInt(parser.getAttributeValue(i));
-        else if (attributeName.equals(STATUS        )) item.status        = Integer.parseInt(parser.getAttributeValue(i));
-      }
-
-      return item;
+      return new XmlBackupItem(parser);
     }
-
     return null;
-  }
-
-  public static class XmlBackupItem {
-    private int    protocol;
-    private String address;
-    private String threadAddress;
-    private long   date;
-    private int    type;
-    private String subject;
-    private String body;
-    private String serviceCenter;
-    private int    read;
-    private int    status;
-
-    public XmlBackupItem() {}
-
-    public XmlBackupItem(int protocol, String address, String threadAddress, long date, int type, String subject,
-                         String body, String serviceCenter, int read, int status)
-    {
-      this.protocol      = protocol;
-      this.address       = address;
-      this.threadAddress = threadAddress;
-      this.date          = date;
-      this.type          = type;
-      this.subject       = subject;
-      this.body          = body;
-      this.serviceCenter = serviceCenter;
-      this.read          = read;
-      this.status        = status;
-    }
-
-    public int getProtocol() {
-      return protocol;
-    }
-
-    public String getAddress() {
-      return address;
-    }
-
-    public String getThreadAddress() {
-      return threadAddress;
-    }
-
-    public long getDate() {
-      return date;
-    }
-
-    public int getType() {
-      return type;
-    }
-
-    public String getSubject() {
-      return subject;
-    }
-
-    public String getBody() {
-      return body;
-    }
-
-    public String getServiceCenter() {
-      return serviceCenter;
-    }
-
-    public int getRead() {
-      return read;
-    }
-
-    public int getStatus() {
-      return status;
-    }
   }
 
   public static class Writer {
@@ -229,6 +137,125 @@ public class XmlBackup {
       matcher.appendTail(st);
       return st.toString();
     }
+  }
 
+  public static class XmlBackupItem {
+    private int    protocol;
+    private String address;
+    private String threadAddress;
+    private long   date;
+    private int    type;
+    private String subject;
+    private String body;
+    private String serviceCenter;
+    private int    read;
+    private int    status;
+
+    public XmlBackupItem(@NonNull MessageRecord record, @Nullable String threadAddress) {
+      this(record.isMms() ? 1 : 0,
+              record.getIndividualRecipient().getNumber(),
+              threadAddress,
+              record.getDateReceived(),
+              MmsSmsColumns.Types.translateToSystemBaseType(record.getType()),
+              null,
+              record.getDisplayBody().toString(),
+              null,
+              1,
+              record.isDelivered() ? SmsDatabase.Status.STATUS_COMPLETE : record.getDeliveryStatus());
+    }
+
+    public XmlBackupItem(@NonNull XmlPullParser parser) {
+      for (int i=0, count=parser.getAttributeCount(); i<count; i++) {
+        switch (parser.getAttributeName(i)) {
+          case PROTOCOL:
+            protocol = Integer.parseInt(parser.getAttributeValue(i));
+            break;
+          case ADDRESS:
+            address = parser.getAttributeValue(i);;
+            break;
+          case THREAD_ADDRESS:
+            threadAddress = parser.getAttributeValue(i);
+            break;
+          case DATE:
+            date = Long.parseLong(parser.getAttributeValue(i));
+            break;
+          case TYPE:
+            type = Integer.parseInt(parser.getAttributeValue(i));
+            break;
+          case SUBJECT:
+            subject = parser.getAttributeValue(i);
+            break;
+          case BODY:
+            body = parser.getAttributeValue(i);
+            break;
+          case SERVICE_CENTER:
+            serviceCenter = parser.getAttributeValue(i);
+            break;
+          case READ:
+            read = Integer.parseInt(parser.getAttributeValue(i));
+            break;
+          case STATUS:
+            status = Integer.parseInt(parser.getAttributeValue(i));
+            break;
+          default:
+            // skip unkown attributes
+        }
+      }
+    }
+
+    private XmlBackupItem(int protocol, String address, String threadAddress, long date, int type, String subject,
+                         String body, String serviceCenter, int read, int status)
+    {
+      this.protocol      = protocol;
+      this.address       = address;
+      this.threadAddress = threadAddress;
+      this.date          = date;
+      this.type          = type;
+      this.subject       = subject;
+      this.body          = body;
+      this.serviceCenter = serviceCenter;
+      this.read          = read;
+      this.status        = status;
+    }
+
+    public int getProtocol() {
+      return protocol;
+    }
+
+    public String getAddress() {
+      return address;
+    }
+
+    public String getThreadAddress() {
+      return threadAddress;
+    }
+
+    public long getDate() {
+      return date;
+    }
+
+    public int getType() {
+      return type;
+    }
+
+    public String getSubject() {
+      return subject;
+    }
+
+    public String getBody() {
+      return body;
+    }
+
+    public String getServiceCenter() {
+      return serviceCenter;
+    }
+
+    public int getRead() {
+      return read;
+    }
+
+    public int getStatus() {
+      return status;
+    }
   }
 }

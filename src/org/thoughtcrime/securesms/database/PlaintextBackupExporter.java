@@ -3,6 +3,7 @@ package org.thoughtcrime.securesms.database;
 
 import android.content.Context;
 import android.os.Environment;
+import android.support.annotation.Nullable;
 
 import org.thoughtcrime.securesms.crypto.MasterSecret;
 import org.thoughtcrime.securesms.database.model.DisplayRecord;
@@ -53,19 +54,8 @@ public class PlaintextBackupExporter {
       reader = DatabaseFactory.getEncryptingSmsDatabase(context).getMessages(masterSecret, skip, ROW_LIMIT);
 
       while ((record = reader.getNext()) != null) {
-        String threadAddress = null;
-        Recipients threadRecipients = threads.getRecipientsForThreadId(record.getThreadId());
-        if (threadRecipients != null && !threadRecipients.isEmpty()) {
-          threadAddress = threadRecipients.getPrimaryRecipient().getNumber();
-        }
-        XmlBackup.XmlBackupItem item =
-            new XmlBackup.XmlBackupItem(0, record.getIndividualRecipient().getNumber(),
-                                        threadAddress, record.getDateReceived(),
-                                        MmsSmsColumns.Types.translateToSystemBaseType(record.getType()),
-                                        null, record.getDisplayBody().toString(), null,
-                                        1, record.isDelivered() ? SmsDatabase.Status.STATUS_COMPLETE : record.getDeliveryStatus());
-
-        writer.writeItem(item);
+        String threadAddress = getThreadAddress(record, threads);
+        writer.writeItem(new XmlBackup.XmlBackupItem(record, threadAddress));
       }
 
       skip += ROW_LIMIT;
@@ -81,24 +71,22 @@ public class PlaintextBackupExporter {
 
       MessageRecord mmsRecord;
       while ((mmsRecord = mmsReader.getNext()) != null) {
-        String threadAddress = null;
-        Recipients threadRecipients = threads.getRecipientsForThreadId(mmsRecord.getThreadId());
-        if (threadRecipients != null && !threadRecipients.isEmpty()) {
-          threadAddress = threadRecipients.getPrimaryRecipient().getNumber();
-        }
-        XmlBackup.XmlBackupItem item =
-                new XmlBackup.XmlBackupItem(1, mmsRecord.getIndividualRecipient().getNumber(),
-                        threadAddress, mmsRecord.getDateReceived(),
-                        MmsSmsColumns.Types.translateToSystemBaseType(mmsRecord.getType()),
-                        null, mmsRecord.getDisplayBody().toString(), null,
-                        1, mmsRecord.isDelivered() ? SmsDatabase.Status.STATUS_COMPLETE : mmsRecord.getDeliveryStatus());
-
-        writer.writeItem(item);
+        String threadAddress = getThreadAddress(mmsRecord, threads);
+        writer.writeItem(new XmlBackup.XmlBackupItem(mmsRecord, threadAddress));
       }
 
       skip += ROW_LIMIT;
     } while (mmsReader.getCount() > 0);
 
     writer.close();
+  }
+
+  @Nullable
+  private static String getThreadAddress(MessageRecord record, ThreadDatabase threads) {
+    Recipients threadRecipients = threads.getRecipientsForThreadId(record.getThreadId());
+    if (threadRecipients == null || threadRecipients.isEmpty()) {
+      return null;
+    }
+    return threadRecipients.getPrimaryRecipient().getNumber();
   }
 }
