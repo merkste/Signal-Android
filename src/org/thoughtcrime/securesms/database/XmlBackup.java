@@ -29,9 +29,6 @@ public class XmlBackup {
   private static final String SERVICE_CENTER = "service_center";
   private static final String READ           = "read";
   private static final String STATUS         = "status";
-  private static final String TOA            = "toa";
-  private static final String SC_TOA         = "sc_toa";
-  private static final String LOCKED         = "locked";
 
   private final XmlPullParser parser;
 
@@ -59,16 +56,10 @@ public class XmlBackup {
 
   public static class Writer {
 
-    private static final String  XML_HEADER      = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?>";
-    private static final String  CREATED_BY      = "<!-- File Created By Signal -->";
-    private static final String  OPEN_TAG_SMSES  = "<smses count=\"%d\">";
-    private static final String  CLOSE_TAG_SMSES = "</smses>";
-    private static final String  OPEN_TAG_SMS    = " <sms ";
-    private static final String  CLOSE_EMPTYTAG  = "/>";
-    private static final String  OPEN_ATTRIBUTE  = "=\"";
-    private static final String  CLOSE_ATTRIBUTE = "\" ";
-
-    private static final Pattern PATTERN         = Pattern.compile("[^\u0020-\uD7FF]");
+    private static final String XML_HEADER      = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\" ?>";
+    private static final String CREATED_BY      = "<!-- File Created By Signal -->";
+    private static final String OPEN_TAG_SMSES  = "<smses count=\"%d\">";
+    private static final String CLOSE_TAG_SMSES = "</smses>";
 
     private final BufferedWriter bufferedWriter;
 
@@ -83,32 +74,8 @@ public class XmlBackup {
     }
 
     public void writeItem(XmlBackupItem item) throws IOException {
-      StringBuilder stringBuilder = new StringBuilder();
-
-      stringBuilder.append(OPEN_TAG_SMS);
-      appendAttribute(stringBuilder, PROTOCOL, item.getProtocol());
-      appendAttribute(stringBuilder, ADDRESS, escapeXML(item.getAddress()));
-      if (item.getThreadAddress() != null && !item.getThreadAddress().equals(item.getAddress())) {
-        appendAttribute(stringBuilder, THREAD_ADDRESS, escapeXML(item.getThreadAddress()));
-      }
-      appendAttribute(stringBuilder, DATE, item.getDate());
-      appendAttribute(stringBuilder, TYPE, item.getType());
-      appendAttribute(stringBuilder, SUBJECT, escapeXML(item.getSubject()));
-      appendAttribute(stringBuilder, BODY, escapeXML(item.getBody()));
-      // appendAttribute(stringBuilder, TOA, "null");
-      // appendAttribute(stringBuilder, SC_TOA, "null");
-      appendAttribute(stringBuilder, SERVICE_CENTER, item.getServiceCenter());
-      appendAttribute(stringBuilder, READ, item.getRead());
-      appendAttribute(stringBuilder, STATUS, item.getStatus());
-      // appendAttribute(stringBuilder, LOCKED, 0);
-      stringBuilder.append(CLOSE_EMPTYTAG);
-
       bufferedWriter.newLine();
-      bufferedWriter.write(stringBuilder.toString());
-    }
-
-    private <T> void appendAttribute(StringBuilder stringBuilder, String name, T value) {
-      stringBuilder.append(name).append(OPEN_ATTRIBUTE).append(value).append(CLOSE_ATTRIBUTE);
+      item.storeOn(bufferedWriter);
     }
 
     public void close() throws IOException {
@@ -116,30 +83,19 @@ public class XmlBackup {
       bufferedWriter.write(CLOSE_TAG_SMSES);
       bufferedWriter.close();
     }
-
-    private String escapeXML(String s) {
-      if (TextUtils.isEmpty(s)) return s;
-
-      Matcher matcher = PATTERN.matcher( s.replace("&",  "&amp;")
-                                          .replace("<",  "&lt;")
-                                          .replace(">",  "&gt;")
-                                          .replace("\"", "&quot;")
-                                          .replace("'",  "&apos;"));
-      StringBuffer st = new StringBuffer();
-
-      while (matcher.find()) {
-        String escaped="";
-        for (char ch: matcher.group(0).toCharArray()) {
-          escaped += ("&#" + ((int) ch) + ";");
-        }
-        matcher.appendReplacement(st, escaped);
-      }
-      matcher.appendTail(st);
-      return st.toString();
-    }
   }
 
   public static class XmlBackupItem {
+    private static final String  OPEN_TAG_SMS    = " <sms ";
+    private static final String  CLOSE_EMPTY_TAG = "/>";
+    private static final String  OPEN_ATTRIBUTE  = "=\"";
+    private static final String  CLOSE_ATTRIBUTE = "\" ";
+    private static final Pattern PATTERN         = Pattern.compile("[^\u0020-\uD7FF]");
+    private static final String  TOA             = "toa";
+    private static final String  SC_TOA          = "sc_toa";
+    private static final String  LOCKED          = "locked";
+
+
     private int    protocol;
     private String address;
     private String threadAddress;
@@ -256,6 +212,60 @@ public class XmlBackup {
 
     public int getStatus() {
       return status;
+    }
+
+    @NonNull
+    private java.io.Writer storeOn(@NonNull java.io.Writer writer) throws IOException {
+      writer.write(OPEN_TAG_SMS);
+      storeAttribute(writer, PROTOCOL, protocol);
+      storeAttribute(writer, ADDRESS, escapeXML(address));
+      if (threadAddress != null && !threadAddress.equals(address)) {
+        storeAttribute(writer, THREAD_ADDRESS, escapeXML(threadAddress));
+      }
+      storeAttribute(writer, DATE, date);
+      storeAttribute(writer, TYPE, type);
+      storeAttribute(writer, SUBJECT, escapeXML(subject));
+      storeAttribute(writer, BODY, escapeXML(body));
+      // storeAttribute(writer, TOA, null);
+      // storeAttribute(writer, SC_TOA, null);
+      storeAttribute(writer, SERVICE_CENTER, serviceCenter);
+      storeAttribute(writer, READ, read);
+      storeAttribute(writer, STATUS, status);
+      // storeAttribute(stringBuilder, LOCKED, 0);
+      writer.write(CLOSE_EMPTY_TAG);
+
+      return writer;
+    }
+
+    @NonNull
+    private <T> java.io.Writer storeAttribute(@NonNull java.io.Writer writer, @NonNull String name, T value) throws IOException {
+      writer.write(name);
+      writer.write(OPEN_ATTRIBUTE);
+      writer.write(String.valueOf(value));
+      writer.write(CLOSE_ATTRIBUTE);
+
+      return writer;
+    }
+
+    private String escapeXML(String s) {
+      if (TextUtils.isEmpty(s)) return s;
+
+      Matcher matcher = PATTERN.matcher( s.replace("&",  "&amp;")
+              .replace("<",  "&lt;")
+              .replace(">",  "&gt;")
+              .replace("\"", "&quot;")
+              .replace("'",  "&apos;"));
+      StringBuffer st = new StringBuffer();
+
+      while (matcher.find()) {
+        String escaped="";
+        for (char ch: matcher.group(0).toCharArray()) {
+          escaped += ("&#" + ((int) ch) + ";");
+        }
+        matcher.appendReplacement(st, escaped);
+      }
+      matcher.appendTail(st);
+      return st.toString();
     }
   }
 }
