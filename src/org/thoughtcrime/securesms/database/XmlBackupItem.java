@@ -5,13 +5,14 @@ import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
 import org.thoughtcrime.securesms.database.model.MessageRecord;
+import org.thoughtcrime.securesms.database.model.SmsMessageRecord;
 import org.xmlpull.v1.XmlPullParser;
 
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class XmlBackupItem {
+public abstract class XmlBackupItem {
   private static final String PROTOCOL       = "protocol";
   private static final String ADDRESS        = "address";
   private static final String THREAD_ADDRESS = "thread_address";
@@ -174,7 +175,7 @@ public class XmlBackupItem {
   }
 
   @NonNull
-  private <T> java.io.Writer storeAttribute(@NonNull java.io.Writer writer, @NonNull String name, T value) throws IOException {
+  protected <T> java.io.Writer storeAttribute(@NonNull java.io.Writer writer, @NonNull String name, T value) throws IOException {
     writer.write(name);
     writer.write(OPEN_ATTRIBUTE);
     writer.write(String.valueOf(value));
@@ -183,7 +184,7 @@ public class XmlBackupItem {
     return writer;
   }
 
-  private String escapeXML(String s) {
+  protected String escapeXML(String s) {
     if (TextUtils.isEmpty(s)) return s;
 
     Matcher matcher = PATTERN.matcher(s.replace("&", "&amp;")
@@ -202,5 +203,24 @@ public class XmlBackupItem {
     }
     matcher.appendTail(st);
     return st.toString();
+  }
+
+  public static class Sms extends XmlBackupItem {
+
+    public Sms(@NonNull SmsMessageRecord record, @Nullable String threadAddress) {
+      super(record, threadAddress);
+    }
+
+    public Sms(@NonNull XmlPullParser parser) {
+      super(parser);
+    }
+
+  }
+
+  public static class Mms extends XmlBackupItem {
+
+    public Mms(@NonNull MessageRecord record, @Nullable String threadAddress) {
+      super(record, threadAddress);
+    }
   }
 }

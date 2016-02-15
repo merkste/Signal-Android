@@ -53,7 +53,7 @@ public class PlaintextBackupExporter {
 
       while ((record = reader.getNext()) != null) {
         String threadAddress = getThreadAddress(record, threads);
-        writer.writeItem(new XmlBackupItem(record, threadAddress));
+        writer.writeItem(new XmlBackupItem.Sms(record, threadAddress));
       }
 
       skip += ROW_LIMIT;
@@ -70,7 +70,7 @@ public class PlaintextBackupExporter {
       MessageRecord mmsRecord;
       while ((mmsRecord = mmsReader.getNext()) != null) {
         String threadAddress = getThreadAddress(mmsRecord, threads);
-        writer.writeItem(new XmlBackupItem(mmsRecord, threadAddress));
+        writer.writeItem(new XmlBackupItem.Mms(mmsRecord, threadAddress));
       }
 
       skip += ROW_LIMIT;

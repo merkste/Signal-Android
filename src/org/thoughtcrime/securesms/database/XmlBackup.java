@@ -30,7 +30,7 @@ public class XmlBackup {
       if (parser.getAttributeCount() <= 0) {
         continue;
       }
-      return new XmlBackupItem(parser);
+      return new XmlBackupItem.Sms(parser);
     }
     return null;
   }
