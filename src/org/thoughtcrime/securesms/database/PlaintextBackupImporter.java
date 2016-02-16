@@ -55,37 +55,41 @@ public class PlaintextBackupImporter {
       XmlBackup      backup          = new XmlBackup(getPlaintextExportFile().getAbsolutePath());
       MasterCipher   masterCipher    = new MasterCipher(masterSecret);
       Set<Long>      modifiedThreads = new HashSet<>();
-      XmlBackupItem item;
+      XmlBackupItem  item;
 
       while ((item = backup.getNext()) != null) {
-        if (item.getAddress() == null || item.getAddress().equals("null"))
+        if (! (item instanceof XmlBackupItem.Sms))
+          continue;
+        XmlBackupItem.Sms sms = (XmlBackupItem.Sms) item;
+
+        if (sms.getAddress() == null || sms.getAddress().equals("null"))
           continue;
 
-        if (!isAppropriateTypeForImport(item.getType()))
+        if (!isAppropriateTypeForImport(sms.getType()))
           continue;
 
-        Recipients      recipients = RecipientFactory.getRecipientsFromString(context, item.getAddress(), false);
+        Recipients      recipients = RecipientFactory.getRecipientsFromString(context, sms.getAddress(), false);
         long            threadId;
         SQLiteStatement statement  = db.createInsertStatement(transaction);
 
-        if (item.getThreadAddress() != null) {
-          threadId = threads.getThreadIdFor(RecipientFactory.getRecipientsFromString(context, item.getThreadAddress(), false));
+        if (sms.getThreadAddress() != null) {
+          threadId = threads.getThreadIdFor(RecipientFactory.getRecipientsFromString(context, sms.getThreadAddress(), false));
         } else {
           threadId = threads.getThreadIdFor(recipients);
         }
 
-        addStringToStatement(statement, 1, item.getAddress());
+        addStringToStatement(statement, 1, sms.getAddress());
         addNullToStatement(statement, 2);
-        addLongToStatement(statement, 3, item.getDate());
-        addLongToStatement(statement, 4, item.getDate());
-        addLongToStatement(statement, 5, item.getProtocol());
-        addLongToStatement(statement, 6, item.getRead());
-        addLongToStatement(statement, 7, item.getStatus());
-        addTranslatedTypeToStatement(statement, 8, item.getType());
+        addLongToStatement(statement, 3, sms.getDateSent());
+        addLongToStatement(statement, 4, sms.getDate());
+        addLongToStatement(statement, 5, sms.getProtocol());
+        addLongToStatement(statement, 6, sms.getRead());
+        addLongToStatement(statement, 7, sms.getStatus());
+        addTranslatedTypeToStatement(statement, 8, sms.getType());
         addNullToStatement(statement, 9);
-        addStringToStatement(statement, 10, item.getSubject());
-        addEncryptedStingToStatement(masterCipher, statement, 11, item.getBody());
-        addStringToStatement(statement, 12, item.getServiceCenter());
+        addStringToStatement(statement, 10, sms.getSubject());
+        addEncryptedStingToStatement(masterCipher, statement, 11, sms.getBody());
+        addStringToStatement(statement, 12, sms.getServiceCenter());
         addLongToStatement(statement, 13, threadId);
         modifiedThreads.add(threadId);
         statement.execute();
@@ -136,6 +140,4 @@ public class PlaintextBackupImporter {
            ourType == MmsSmsColumns.Types.BASE_SENT_TYPE ||
            ourType == MmsSmsColumns.Types.BASE_SENT_FAILED_TYPE;
   }
-
-
 }
