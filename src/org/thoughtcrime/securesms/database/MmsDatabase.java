@@ -21,6 +21,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteStatement;
 import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -83,34 +84,76 @@ public class MmsDatabase extends MessagingDatabase {
 
   private static final String TAG = MmsDatabase.class.getSimpleName();
 
-  public  static final String TABLE_NAME         = "mms";
-          static final String DATE_SENT          = "date";
-          static final String DATE_RECEIVED      = "date_received";
-  public  static final String MESSAGE_BOX        = "msg_box";
-          static final String CONTENT_LOCATION   = "ct_l";
-          static final String EXPIRY             = "exp";
-  public  static final String MESSAGE_TYPE       = "m_type";
-          static final String MESSAGE_SIZE       = "m_size";
-          static final String STATUS             = "st";
-          static final String TRANSACTION_ID     = "tr_id";
-          static final String PART_COUNT         = "part_count";
-          static final String NETWORK_FAILURE    = "network_failures";
+  public static final String TABLE_NAME            = "mms";
+         static final String DATE_SENT             = "date";
+         static final String DATE_RECEIVED         = "date_received";
+  public static final String MESSAGE_BOX           = "msg_box";
+         static final String CONTENT_LOCATION      = "ct_l";
+         static final String EXPIRY                = "exp";
+  public static final String MESSAGE_TYPE          = "m_type";
+         static final String MESSAGE_SIZE          = "m_size";
+         static final String STATUS                = "st";
+         static final String TRANSACTION_ID        = "tr_id";
+         static final String PART_COUNT            = "part_count";
+         static final String NETWORK_FAILURE       = "network_failures";
+  public static final String MESSAGE_ID            = "m_id";
+  public static final String SUBJECT               = "sub";
+  public static final String SUBJECT_CHARSET       = "sub_cs";
+  public static final String CONTENT_TYPE          = "ct_t";
+  public static final String MESSAGE_CLASS         = "m_cls";
+  public static final String MMS_VERSION           = "v";
+  public static final String PRIORITY              = "pri";
+  public static final String READ_REPORT           = "rr";
+  public static final String REPORT_ALLOWED        = "rpt_a";
+  public static final String RESPONSE_STATUS       = "resp_st";
+  public static final String RETRIEVE_STATUS       = "retr_st";
+  public static final String RETRIEVE_TEXT         = "retr_txt";
+  public static final String RETRIEVE_TEXT_CHARSET = "retr_txt_cs";
+  public static final String READ_STATUS           = "read_status";
+  public static final String CONTENT_CLASS         = "ct_cls";
+  public static final String RESPONSE_TEXT         = "resp_txt";
+  public static final String DELIVERY_TIME         = "d_tm";
+  public static final String DELIVERY_REPORT       = "d_rpt";
 
-  public static final String CREATE_TABLE = "CREATE TABLE " + TABLE_NAME + " (" + ID + " INTEGER PRIMARY KEY, "                          +
-    THREAD_ID + " INTEGER, " + DATE_SENT + " INTEGER, " + DATE_RECEIVED + " INTEGER, " + MESSAGE_BOX + " INTEGER, " +
-    READ + " INTEGER DEFAULT 0, " + "m_id" + " TEXT, " + "sub" + " TEXT, "                +
-    "sub_cs" + " INTEGER, " + BODY + " TEXT, " + PART_COUNT + " INTEGER, "               +
-    "ct_t" + " TEXT, " + CONTENT_LOCATION + " TEXT, " + ADDRESS + " TEXT, "               +
-    ADDRESS_DEVICE_ID + " INTEGER, "                                                            +
-    EXPIRY + " INTEGER, " + "m_cls" + " TEXT, " + MESSAGE_TYPE + " INTEGER, "             +
-    "v" + " INTEGER, " + MESSAGE_SIZE + " INTEGER, " + "pri" + " INTEGER, "          +
-    "rr" + " INTEGER, " + "rpt_a" + " INTEGER, " + "resp_st" + " INTEGER, " +
-    STATUS + " INTEGER, " + TRANSACTION_ID + " TEXT, " + "retr_st" + " INTEGER, "         +
-    "retr_txt" + " TEXT, " + "retr_txt_cs" + " INTEGER, " + "read_status" + " INTEGER, "    +
-    "ct_cls" + " INTEGER, " + "resp_txt" + " TEXT, " + "d_tm" + " INTEGER, "     +
-    RECEIPT_COUNT + " INTEGER DEFAULT 0, " + MISMATCHED_IDENTITIES + " TEXT DEFAULT NULL, "     +
-    NETWORK_FAILURE + " TEXT DEFAULT NULL," + "d_rpt" + " INTEGER, " +
-    SUBSCRIPTION_ID + " INTEGER DEFAULT -1);";
+  public static final String CREATE_TABLE = "CREATE TABLE " + TABLE_NAME + " ("
+          + ID                    + " INTEGER PRIMARY KEY, "
+          + THREAD_ID             + " INTEGER, "
+          + DATE_SENT             + " INTEGER, "
+          + DATE_RECEIVED         + " INTEGER, "
+          + MESSAGE_BOX           + " INTEGER, "
+          + READ                  + " INTEGER DEFAULT 0, "
+          + MESSAGE_ID            + " TEXT, "
+          + SUBJECT               + " TEXT, "
+          + SUBJECT_CHARSET       + " INTEGER, "
+          + BODY                  + " TEXT, "
+          + PART_COUNT            + " INTEGER, "
+          + CONTENT_TYPE          + " TEXT, "
+          + CONTENT_LOCATION      + " TEXT, "
+          + ADDRESS               + " TEXT, "
+          + ADDRESS_DEVICE_ID     + " INTEGER, "
+          + EXPIRY                + " INTEGER, "
+          + MESSAGE_CLASS         + " TEXT, "
+          + MESSAGE_TYPE          + " INTEGER, "
+          + MMS_VERSION           + " INTEGER, "
+          + MESSAGE_SIZE          + " INTEGER, "
+          + PRIORITY              + " INTEGER, "
+          + READ_REPORT           + " INTEGER, "
+          + REPORT_ALLOWED        + " INTEGER, "
+          + RESPONSE_STATUS       + " INTEGER, "
+          + STATUS                + " INTEGER, "
+          + TRANSACTION_ID        + " TEXT, "
+          + RETRIEVE_STATUS       + " INTEGER, "
+          + RETRIEVE_TEXT         + " TEXT, "
+          + RETRIEVE_TEXT_CHARSET + " INTEGER, "
+          + READ_STATUS           + " INTEGER, "
+          + CONTENT_CLASS         + " INTEGER, "
+          + RESPONSE_TEXT         + " TEXT, "
+          + DELIVERY_TIME         + " INTEGER, "
+          + RECEIPT_COUNT         + " INTEGER DEFAULT 0, "
+          + MISMATCHED_IDENTITIES + " TEXT    DEFAULT NULL, "
+          + NETWORK_FAILURE       + " TEXT    DEFAULT NULL, "
+          + DELIVERY_REPORT       + " INTEGER, "
+          + SUBSCRIPTION_ID       + " INTEGER DEFAULT -1);";
 
   public static final String[] CREATE_INDEXS = {
     "CREATE INDEX IF NOT EXISTS mms_thread_id_index ON " + TABLE_NAME + " (" + THREAD_ID + ");",
