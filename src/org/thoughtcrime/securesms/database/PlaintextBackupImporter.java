@@ -47,52 +47,43 @@ public class PlaintextBackupImporter {
       throws IOException
   {
     Log.w("PlaintextBackupImporter", "importPlaintext()");
-    SmsDatabase    db          = DatabaseFactory.getSmsDatabase(context);
-    SQLiteDatabase transaction = db.beginTransaction();
+    SmsDatabase    smsDatabase    = DatabaseFactory.getSmsDatabase(context);
+    SQLiteDatabase smsTransaction = smsDatabase.beginTransaction();
+    MmsDatabase    mmsDatabase    = DatabaseFactory.getMmsDatabase(context);
+    SQLiteDatabase mmsTransaction = mmsDatabase.beginTransaction();
 
     try {
       ThreadDatabase threads         = DatabaseFactory.getThreadDatabase(context);
       XmlBackup      backup          = new XmlBackup(getPlaintextExportFile().getAbsolutePath());
       MasterCipher   masterCipher    = new MasterCipher(masterSecret);
       Set<Long>      modifiedThreads = new HashSet<>();
-      XmlBackupItem  item;
+      XmlBackupItem  msg;
 
-      while ((item = backup.getNext()) != null) {
-        if (! (item instanceof XmlBackupItem.Sms))
+      while ((msg = backup.getNext()) != null) {
+        if (msg.getAddress() == null || msg.getAddress().equals("null"))
           continue;
-        XmlBackupItem.Sms sms = (XmlBackupItem.Sms) item;
+        if (!isAppropriateTypeForImport(msg.getType()))
+          continue; // TODO: check whether this is sound for MMS as well
 
-        if (sms.getAddress() == null || sms.getAddress().equals("null"))
-          continue;
-
-        if (!isAppropriateTypeForImport(sms.getType()))
-          continue;
-
-        Recipients      recipients = RecipientFactory.getRecipientsFromString(context, sms.getAddress(), false);
-        long            threadId;
-        SQLiteStatement statement  = db.createInsertStatement(transaction);
-
-        if (sms.getThreadAddress() != null) {
-          threadId = threads.getThreadIdFor(RecipientFactory.getRecipientsFromString(context, sms.getThreadAddress(), false));
+        long threadId;
+        if (msg.getThreadAddress() != null) {
+          threadId = threads.getThreadIdFor(RecipientFactory.getRecipientsFromString(context, msg.getThreadAddress(), false));
         } else {
+          Recipients recipients = RecipientFactory.getRecipientsFromString(context, msg.getAddress(), false);
           threadId = threads.getThreadIdFor(recipients);
         }
 
-        addStringToStatement(statement, 1, sms.getAddress());
-        addNullToStatement(statement, 2);
-        addLongToStatement(statement, 3, sms.getDateSent());
-        addLongToStatement(statement, 4, sms.getDate());
-        addLongToStatement(statement, 5, sms.getProtocol());
-        addLongToStatement(statement, 6, sms.getRead());
-        addLongToStatement(statement, 7, sms.getStatus());
-        addTranslatedTypeToStatement(statement, 8, sms.getType());
-        addNullToStatement(statement, 9);
-        addStringToStatement(statement, 10, sms.getSubject());
-        addEncryptedStingToStatement(masterCipher, statement, 11, sms.getBody());
-        addStringToStatement(statement, 12, sms.getServiceCenter());
-        addLongToStatement(statement, 13, threadId);
-        modifiedThreads.add(threadId);
+        SQLiteStatement statement;
+        if (msg instanceof XmlBackupItem.Sms) {
+          statement = smsDatabase.createInsertStatement(smsTransaction);
+          addMsgToStatement(statement, (XmlBackupItem.Sms) msg, threadId, masterCipher);
+        } else {
+          statement = smsDatabase.createInsertStatement(mmsTransaction);
+          addMsgToStatement(statement, (XmlBackupItem.Mms) msg, threadId, masterCipher);
+        }
         statement.execute();
+
+        modifiedThreads.add(threadId);
       }
 
       for (long threadId : modifiedThreads) {
@@ -104,8 +95,65 @@ public class PlaintextBackupImporter {
       Log.w("PlaintextBackupImporter", e);
       throw new IOException("XML Parsing error!");
     } finally {
-      db.endTransaction(transaction);
+      smsDatabase.endTransaction(smsTransaction);
+      mmsDatabase.endTransaction(mmsTransaction);
     }
+  }
+
+  private static void addMsgToStatement(SQLiteStatement statement, XmlBackupItem.Sms sms, long threadId, MasterCipher masterCipher) {
+    addStringToStatement(statement, 1, sms.getAddress());
+    addNullToStatement(statement, 2);
+    addLongToStatement(statement, 3, sms.getDateSent());
+    addLongToStatement(statement, 4, sms.getDate());
+    addLongToStatement(statement, 5, sms.getProtocol());
+    addLongToStatement(statement, 6, sms.getRead());
+    addLongToStatement(statement, 7, sms.getStatus());
+    addTranslatedTypeToStatement(statement, 8, sms.getType());
+    addNullToStatement(statement, 9);
+    addStringToStatement(statement, 10, sms.getSubject());
+    addEncryptedStingToStatement(masterCipher, statement, 11, sms.getBody());
+    addStringToStatement(statement, 12, sms.getServiceCenter());
+    addLongToStatement(statement, 13, threadId);
+  }
+
+  private static void addMsgToStatement(SQLiteStatement statement, XmlBackupItem.Mms mms, long threadId, MasterCipher masterCipher) {
+    addLongToStatement(statement, 1, threadId);                              // THREAD_ID
+    addLongToStatement(statement, 2, mms.getDateSent());                     // DATE_SENT
+    addLongToStatement(statement, 3, mms.getDate());                         // DATE_RECEIVED
+    addTranslatedTypeToStatement(statement, 4, mms.getType());               // MESSAGE_BOX TODO: check mms/sms types
+    addLongToStatement(statement, 5, mms.getRead());                         // READ                  DEFAULT 0
+    addNullToStatement(statement, 6);                                        // MESSAGE_ID
+    addStringToStatement(statement, 7, mms.getSubject());                    // SUBJECT
+    addNullToStatement(statement, 8);                                        // SUBJECT_CHARSET
+    addEncryptedStingToStatement(masterCipher, statement, 9, mms.getBody()); // BODY
+    addLongToStatement(statement, 10, 1);                                    // PART_COUNT
+    addNullToStatement(statement, 11);                                       // CONTENT_TYPE
+    addNullToStatement(statement, 12);                                       // CONTENT_LOCATION
+    addStringToStatement(statement, 13, mms.getAddress());                   // ADDRESS
+    addNullToStatement(statement, 14);                                       // ADDRESS_DEVICE_ID
+    addNullToStatement(statement, 15);                                       // EXPIRY
+    addNullToStatement(statement, 16);                                       // MESSAGE_CLASS
+    addNullToStatement(statement, 17);                                       // MESSAGE_TYPE
+    addNullToStatement(statement, 18);                                       // MMS_VERSION
+    addNullToStatement(statement, 19);                                       // MESSAGE_SIZE
+    addNullToStatement(statement, 20);                                       // PRIORITY
+    addNullToStatement(statement, 21);                                       // READ_REPORT
+    addNullToStatement(statement, 22);                                       // REPORT_ALLOWED
+    addNullToStatement(statement, 23);                                       // RESPONSE_STATUS
+    addLongToStatement(statement, 24, mms.getStatus());                      // STATUS  TODO: check mms/sms status
+    addNullToStatement(statement, 25);                                       // TRANSACTION_ID
+    addNullToStatement(statement, 26);                                       // RETRIEVE_STATUS
+    addNullToStatement(statement, 27);                                       // RETRIEVE_TEXT
+    addNullToStatement(statement, 28);                                       // RETRIEVE_TEXT_CHARSET
+    addNullToStatement(statement, 29);                                       // READ_STATUS
+    addNullToStatement(statement, 30);                                       // CONTENT_CLASS
+    addNullToStatement(statement, 31);                                       // RESPONSE_TEXT
+    addNullToStatement(statement, 32);                                       // DELIVERY_TIME
+    addNullToStatement(statement, 33);                                       // RECEIPT_COUNT,        DEFAULT 0
+    addNullToStatement(statement, 34);                                       // MISMATCHED_IDENTITIES DEFAULT NULL
+    addNullToStatement(statement, 35);                                       // NETWORK_FAILURE       DEFAULT NULL
+    addNullToStatement(statement, 36);                                       // DELIVERY_REPORT
+    addNullToStatement(statement, 37);                                       // SUBSCRIPTION_ID       DEFAULT -1
   }
 
   private static void addEncryptedStingToStatement(MasterCipher masterCipher, SQLiteStatement statement, int index, String value) {
