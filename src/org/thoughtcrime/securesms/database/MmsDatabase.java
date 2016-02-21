@@ -999,6 +999,59 @@ public class MmsDatabase extends MessagingDatabase {
     }
   }
 
+  /*package*/ SQLiteDatabase beginTransaction() {
+    SQLiteDatabase database = databaseHelper.getWritableDatabase();
+    database.beginTransaction();
+    return database;
+  }
+
+  /*package*/ void endTransaction(SQLiteDatabase database) {
+    database.setTransactionSuccessful();
+    database.endTransaction();
+  }
+
+  /*package*/ SQLiteStatement createInsertStatement(SQLiteDatabase database) {
+    return database.compileStatement("INSERT INTO " + TABLE_NAME + " ("
+            + THREAD_ID             + ", "
+            + DATE_SENT             + ", "
+            + DATE_RECEIVED         + ", "
+            + MESSAGE_BOX           + ", "
+            + READ                  + ", "  // DEFAULT 0
+            + MESSAGE_ID            + ", "
+            + SUBJECT               + ", "
+            + SUBJECT_CHARSET       + ", "
+            + BODY                  + ", "
+            + PART_COUNT            + ", "
+            + CONTENT_TYPE          + ", "
+            + CONTENT_LOCATION      + ", "
+            + ADDRESS               + ", "
+            + ADDRESS_DEVICE_ID     + ", "
+            + EXPIRY                + ", "
+            + MESSAGE_CLASS         + ", "
+            + MESSAGE_TYPE          + ", "
+            + MMS_VERSION           + ", "
+            + MESSAGE_SIZE          + ", "
+            + PRIORITY              + ", "
+            + READ_REPORT           + ", "
+            + REPORT_ALLOWED        + ", "
+            + RESPONSE_STATUS       + ", "
+            + STATUS                + ", "
+            + TRANSACTION_ID        + ", "
+            + RETRIEVE_STATUS       + ", "
+            + RETRIEVE_TEXT         + ", "
+            + RETRIEVE_TEXT_CHARSET + ", "
+            + READ_STATUS           + ", "
+            + CONTENT_CLASS         + ", "
+            + RESPONSE_TEXT         + ", "
+            + DELIVERY_TIME         + ", "
+            + RECEIPT_COUNT         + ", "  // DEFAULT 0
+            + MISMATCHED_IDENTITIES + ", "  // DEFAULT NULL
+            + NETWORK_FAILURE       + ", "  // DEFAULT NULL
+            + DELIVERY_REPORT       + ", "
+            + SUBSCRIPTION_ID       + ") "  // DEFAULT -1
+            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+  }
+
   public Reader readerFor(MasterSecret masterSecret, Cursor cursor) {
     return new Reader(masterSecret, cursor);
   }
