@@ -126,22 +126,22 @@ public class PlaintextBackupImporter {
     addStringToStatement(statement, 7, mms.getSubject());                    // SUBJECT
     addNullToStatement(statement, 8);                                        // SUBJECT_CHARSET
     addEncryptedStingToStatement(masterCipher, statement, 9, mms.getBody()); // BODY
-    addLongToStatement(statement, 10, 1);                                    // PART_COUNT
+    addLongToStatement(statement, 10, mms.getPartCount());                   // PART_COUNT
     addNullToStatement(statement, 11);                                       // CONTENT_TYPE
-    addNullToStatement(statement, 12);                                       // CONTENT_LOCATION
+    addStringToStatement(statement, 12, mms.getContentLocation());           // CONTENT_LOCATION
     addStringToStatement(statement, 13, mms.getAddress());                   // ADDRESS
     addNullToStatement(statement, 14);                                       // ADDRESS_DEVICE_ID
-    addNullToStatement(statement, 15);                                       // EXPIRY
+    addLongToStatement(statement, 15, mms.getExpiry());                      // EXPIRY
     addNullToStatement(statement, 16);                                       // MESSAGE_CLASS
     addNullToStatement(statement, 17);                                       // MESSAGE_TYPE
     addNullToStatement(statement, 18);                                       // MMS_VERSION
-    addNullToStatement(statement, 19);                                       // MESSAGE_SIZE
+    addLongToStatement(statement, 19, mms.getMessageSize());                 // MESSAGE_SIZE
     addNullToStatement(statement, 20);                                       // PRIORITY
     addNullToStatement(statement, 21);                                       // READ_REPORT
     addNullToStatement(statement, 22);                                       // REPORT_ALLOWED
     addNullToStatement(statement, 23);                                       // RESPONSE_STATUS
     addLongToStatement(statement, 24, mms.getStatus());                      // STATUS  TODO: check mms/sms status
-    addNullToStatement(statement, 25);                                       // TRANSACTION_ID
+    addStringToStatement(statement, 25, mms.getTransactionId());             // TRANSACTION_ID
     addNullToStatement(statement, 26);                                       // RETRIEVE_STATUS
     addNullToStatement(statement, 27);                                       // RETRIEVE_TEXT
     addNullToStatement(statement, 28);                                       // RETRIEVE_TEXT_CHARSET
@@ -153,7 +153,7 @@ public class PlaintextBackupImporter {
     addNullToStatement(statement, 34);                                       // MISMATCHED_IDENTITIES DEFAULT NULL
     addNullToStatement(statement, 35);                                       // NETWORK_FAILURE       DEFAULT NULL
     addNullToStatement(statement, 36);                                       // DELIVERY_REPORT
-    addNullToStatement(statement, 37);                                       // SUBSCRIPTION_ID       DEFAULT -1
+    addLongToStatement(statement, 37, mms.getSubscriptionId());              // SUBSCRIPTION_ID       DEFAULT -1
   }
 
   private static void addEncryptedStingToStatement(MasterCipher masterCipher, SQLiteStatement statement, int index, String value) {

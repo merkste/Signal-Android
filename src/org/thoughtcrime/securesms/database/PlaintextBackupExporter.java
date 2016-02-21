@@ -6,7 +6,9 @@ import android.os.Environment;
 import android.support.annotation.Nullable;
 
 import org.thoughtcrime.securesms.crypto.MasterSecret;
+import org.thoughtcrime.securesms.database.model.MediaMmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.MessageRecord;
+import org.thoughtcrime.securesms.database.model.NotificationMmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.SmsMessageRecord;
 import org.thoughtcrime.securesms.recipients.Recipients;
 
@@ -70,7 +72,11 @@ public class PlaintextBackupExporter {
       MessageRecord mmsRecord;
       while ((mmsRecord = mmsReader.getNext()) != null) {
         String threadAddress = getThreadAddress(mmsRecord, threads);
-        writer.writeItem(new XmlBackupItem.Mms(mmsRecord, threadAddress));
+        if (mmsRecord instanceof MediaMmsMessageRecord) {
+          writer.writeItem(new XmlBackupItem.Mms((MediaMmsMessageRecord) mmsRecord, threadAddress));
+        } else if (mmsRecord instanceof NotificationMmsMessageRecord) {
+          writer.writeItem(new XmlBackupItem.Mms((NotificationMmsMessageRecord) mmsRecord, threadAddress));
+        }
       }
 
       skip += ROW_LIMIT;

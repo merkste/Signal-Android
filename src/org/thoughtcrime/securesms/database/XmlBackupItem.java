@@ -7,8 +7,11 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
+import org.thoughtcrime.securesms.database.model.MediaMmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.MessageRecord;
+import org.thoughtcrime.securesms.database.model.NotificationMmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.SmsMessageRecord;
+import org.whispersystems.libaxolotl.util.guava.Optional;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -261,9 +264,29 @@ public abstract class XmlBackupItem {
     // character sets
     public static final int UTF_8 = 106;
 
+    // MMS attributes
+    private byte[] contentLocation;
+    private long expiry          = -1;  // TODO: check meaning of expiry long value
+    private long messageSize     = 0;
+    private int partCount        = 1;
+    private int subscriptionId   = -1;
+    private byte[] transactionId = null;
 
-    public Mms(@NonNull MessageRecord record, @Nullable String threadAddress) {
+
+    public Mms(@NonNull MediaMmsMessageRecord record, @Nullable String threadAddress) {
       super(record, threadAddress);
+      this.partCount = record.getPartCount();
+//      this.slideDeck = record.getSlideDeck();
+    }
+
+    public Mms(@NonNull NotificationMmsMessageRecord record, @Nullable String threadAddress) {
+      super(record, threadAddress);
+      this.contentLocation = record.getContentLocation();
+      this.messageSize     = record.getMessageSize();
+      this.expiry          = record.getExpiration();
+//      this.status          = record.getStatus(); TODO: check status type of MMS
+      this.subscriptionId = record.getSubscriptionId();
+      this.transactionId   = record.getTransactionId();
     }
 
     public Mms(@NonNull XmlPullParser parser) throws IOException, XmlPullParserException {
@@ -290,6 +313,21 @@ public abstract class XmlBackupItem {
           break;
         case BaseMmsColumns.STATUS:
           status = Integer.parseInt(parser.getAttributeValue(i));
+          break;
+        case BaseMmsColumns.CONTENT_LOCATION:
+          contentLocation = null; // TODO: convert to byte array
+          break;
+        case BaseMmsColumns.EXPIRY:
+          expiry = Long.parseLong(parser.getAttributeValue(i));
+          break;
+        case BaseMmsColumns.MESSAGE_SIZE:
+          messageSize = Long.parseLong(parser.getAttributeValue(i));
+          break;
+        case BaseMmsColumns.SUBSCRIPTION_ID:
+          subscriptionId = Integer.parseInt(parser.getAttributeValue(i));
+          break;
+        case BaseMmsColumns.TRANSACTION_ID:
+          transactionId = null;  // TODO: convert to byte array
           break;
         default:
           super.readAttribute(parser, i);
@@ -320,6 +358,29 @@ public abstract class XmlBackupItem {
       }
     }
 
+    public String getContentLocation() {
+      return contentLocation == null ? null : new String(contentLocation);
+    }
+
+    public long getMessageSize() {
+      return messageSize;
+    }
+    public long getExpiry() {
+      return expiry;
+    }
+
+    public int getPartCount() {
+      return partCount;
+    }
+
+    public int getSubscriptionId() {
+      return subscriptionId;
+    }
+
+    public String getTransactionId() {
+      return transactionId == null ? null : new String(transactionId);
+    }
+
     @NonNull
     public BufferedWriter storeOn(@NonNull BufferedWriter writer) throws IOException {
       writer.write(OPEN_TAG_MMS);
@@ -340,8 +401,8 @@ public abstract class XmlBackupItem {
 //      storeAttribute(writer, BaseMmsColumns.CONTENT_CLASS, null);
 //      storeAttribute(writer, BaseMmsColumns.SUBJECT_CHARSET, 106);
 //      storeAttribute(writer, BaseMmsColumns.RETRIEVE_STATUS, "128");
-//      storeAttribute(writer, BaseMmsColumns.CONTENT_LOCATION, null);
-//      storeAttribute(writer, BaseMmsColumns.TRANSACTION_ID, "NOHGKJFXDGAO27ng4E");
+      storeAttribute(writer, BaseMmsColumns.CONTENT_LOCATION, contentLocation);
+      storeAttribute(writer, BaseMmsColumns.TRANSACTION_ID, transactionId);
 //      storeAttribute(writer, BaseMmsColumns.MESSAGE_CLASS, "personal");
 //      storeAttribute(writer, BaseMmsColumns.DELIVERY_TIME, null);
 //      storeAttribute(writer, BaseMmsColumns.READ_STATUS, null);
@@ -353,7 +414,7 @@ public abstract class XmlBackupItem {
 //      storeAttribute(writer, BaseMmsColumns.SEEN, 1);
 //      storeAttribute(writer, BaseMmsColumns.MESSAGE_TYPE, 132);
 //      storeAttribute(writer, BaseMmsColumns.MMS_VERSION, 17);
-//      storeAttribute(writer, BaseMmsColumns.EXPIRY, null);
+      storeAttribute(writer, BaseMmsColumns.EXPIRY, expiry);
 //      storeAttribute(writer, BaseMmsColumns.PRIORITY, 129);
 //      storeAttribute(writer, BaseMmsColumns.READ_REPORT, 129);
 //      storeAttribute(writer, BaseMmsColumns.RESPONSE_TEXT, null);
@@ -361,7 +422,7 @@ public abstract class XmlBackupItem {
 //      storeAttribute(writer, BaseMmsColumns.LOCKED, 0);
 //      storeAttribute(writer, BaseMmsColumns.RETRIEVE_TEXT, null);
 //      storeAttribute(writer, BaseMmsColumns.RESPONSE_STATUS, null);
-//      storeAttribute(writer, BaseMmsColumns.MESSAGE_SIZE, null);
+      storeAttribute(writer, BaseMmsColumns.MESSAGE_SIZE, messageSize);
 //      storeAttribute(writer, BaseMmsColumns.CREATOR, null);
 //      storeAttribute(writer, READABLE_DATE, "08.03.3588 12:54:30");
 //      storeAttribute(writer, CONTACT_NAME, "Hook");
