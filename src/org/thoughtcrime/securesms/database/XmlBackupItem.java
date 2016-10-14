@@ -6,12 +6,12 @@ import android.provider.Telephony.TextBasedSmsColumns;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
+import android.util.Log;
 
 import org.thoughtcrime.securesms.database.model.MediaMmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.MessageRecord;
 import org.thoughtcrime.securesms.database.model.NotificationMmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.SmsMessageRecord;
-import org.whispersystems.libaxolotl.util.guava.Optional;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -44,7 +44,7 @@ public abstract class XmlBackupItem {
   protected String subject;
   protected String body;
   protected int read;
-  protected int status;
+  protected Integer status;
 
   public XmlBackupItem(@NonNull MessageRecord record, @Nullable String threadAddress) {
     this(record.getIndividualRecipient().getNumber(),
@@ -60,26 +60,29 @@ public abstract class XmlBackupItem {
 
   public XmlBackupItem(@NonNull XmlPullParser parser) {
     for (int i = 0, count = parser.getAttributeCount(); i < count; i++) {
-      readAttribute(parser, i);
+      String attribute = parser.getAttributeName(i);
+      String rawValue  = parser.getAttributeValue(i);
+      String value     = rawValue.equalsIgnoreCase("null") || rawValue.isEmpty() ? null : rawValue;
+      readAttribute(attribute, value);
     }
   }
 
-  protected void readAttribute(@NonNull XmlPullParser parser, int i) {
-    switch (parser.getAttributeName(i)) {
+  protected void readAttribute(@NonNull String attribute, @Nullable String value) {
+    switch (attribute) {
       case TextBasedSmsColumns.ADDRESS:
-        address = parser.getAttributeValue(i);
+        address = value;
         break;
       case THREAD_ADDRESS:
-        threadAddress = parser.getAttributeValue(i);
+        threadAddress = value;
         break;
       case TextBasedSmsColumns.DATE:
-        date = Long.parseLong(parser.getAttributeValue(i));
+        date = Long.parseLong(value);
         break;
       case TextBasedSmsColumns.DATE_SENT:
-        dateSent = Long.parseLong(parser.getAttributeValue(i));
+        dateSent = Long.parseLong(value);
         break;
       case TextBasedSmsColumns.READ:
-        read = Integer.parseInt(parser.getAttributeValue(i));
+        read = Integer.parseInt(value);
         break;
       default:
         // ignore unkown attributes
@@ -129,7 +132,7 @@ public abstract class XmlBackupItem {
     return read;
   }
 
-  public int getStatus() {
+  public Integer getStatus() {
     return status;
   }
 
@@ -174,7 +177,7 @@ public abstract class XmlBackupItem {
     public static final String SC_TOA = "sc_toa"; // SMS Backup & Restore, optional
 
     // XML tags
-    public static final String OPEN_TAG_SMS    = " <sms ";
+    public static final String OPEN_TAG_SMS    = "  <sms ";
 
     // SMS attributes
     protected int protocol;
@@ -189,28 +192,28 @@ public abstract class XmlBackupItem {
     }
 
     @Override
-    protected void readAttribute(@NonNull XmlPullParser parser, int i) {
-      switch (parser.getAttributeName(i)) {
+    protected void readAttribute(@NonNull String attribute, @Nullable String value) {
+      switch (attribute) {
         case TextBasedSmsColumns.STATUS:
-          status = Integer.parseInt(parser.getAttributeValue(i));
+          status = Integer.parseInt(value);
           break;
         case TextBasedSmsColumns.PROTOCOL:
-          protocol = Integer.parseInt(parser.getAttributeValue(i));
+          protocol = Integer.parseInt(value);
           break;
         case TextBasedSmsColumns.TYPE:
-          type = Integer.parseInt(parser.getAttributeValue(i));
+          type = Integer.parseInt(value);
           break;
         case TextBasedSmsColumns.SUBJECT:
-          subject = parser.getAttributeValue(i);
+          subject = value;
           break;
         case TextBasedSmsColumns.BODY:
-          body = parser.getAttributeValue(i);
+          body = value;
           break;
         case TextBasedSmsColumns.SERVICE_CENTER:
-          serviceCenter = parser.getAttributeValue(i);
+          serviceCenter = value;
           break;
         default:
-          super.readAttribute(parser, i);
+          super.readAttribute(attribute, value);
       }
     }
 
@@ -257,16 +260,18 @@ public abstract class XmlBackupItem {
     public static final String DATA         = "data";          // SMS Backup & Restore, optional
 
     // XML tags
-    public static final String OPEN_TAG_MMS    = " <mms ";
-    public static final String OPEN_TAG_PART   = "  <part ";
-    public static final String CLOSE_TAG_MMS   = " </mms> ";
+    public static final String OPEN_TAG_MMS    = "  <mms ";
+    public static final String OPEN_TAG_PARTS  = "    <parts>";
+    public static final String OPEN_TAG_PART   = "      <part ";
+    public static final String CLOSE_TAG_PARTS = "    </parts>";
+    public static final String CLOSE_TAG_MMS   = "  </mms>";
 
     // character sets
     public static final int UTF_8 = 106;
 
     // MMS attributes
     private byte[] contentLocation;
-    private long expiry          = -1;  // TODO: check meaning of expiry long value
+    private long expiry          = -1;  // TODO: check meaning of expiry long value, seconds?
     private long messageSize     = 0;
     private int partCount        = 1;
     private int subscriptionId   = -1;
@@ -291,46 +296,49 @@ public abstract class XmlBackupItem {
 
     public Mms(@NonNull XmlPullParser parser) throws IOException, XmlPullParserException {
       super(parser);
-      while (parser.next() != XmlPullParser.END_TAG) {
+      while (! ((parser.next() == XmlPullParser.END_TAG) && parser.getName().equals("parts")) ) {
         if (parser.getEventType() != XmlPullParser.START_TAG) {
           continue;
         }
+        Log.w("XmlBackupItem", "read: " + parser.getName());
         if (!parser.getName().equalsIgnoreCase("part")) {
           continue;
         }
         if (body == null) {
           // read first text part only
           readTextOnlyPart(parser);
+          Log.w("XmlBackupItem", "body = " + getBody());
         }
       }
     }
 
     @Override
-    protected void readAttribute(@NonNull XmlPullParser parser, int i) {
-      switch (parser.getAttributeName(i)) {
+    protected void readAttribute(@NonNull String attribute, @Nullable String value) {
+      switch (attribute) {
+        // TODO: read type = MSG_BOX
         case BaseMmsColumns.SUBJECT:
-          subject = parser.getAttributeValue(i);
+          subject = value;
           break;
         case BaseMmsColumns.STATUS:
-          status = Integer.parseInt(parser.getAttributeValue(i));
+          status = value == null ? null : Integer.parseInt(value);
           break;
         case BaseMmsColumns.CONTENT_LOCATION:
           contentLocation = null; // TODO: convert to byte array
           break;
         case BaseMmsColumns.EXPIRY:
-          expiry = Long.parseLong(parser.getAttributeValue(i));
+          expiry = Long.parseLong(value);
           break;
         case BaseMmsColumns.MESSAGE_SIZE:
-          messageSize = Long.parseLong(parser.getAttributeValue(i));
+          messageSize = Long.parseLong(value);
           break;
         case BaseMmsColumns.SUBSCRIPTION_ID:
-          subscriptionId = Integer.parseInt(parser.getAttributeValue(i));
+          subscriptionId = Integer.parseInt(value);
           break;
         case BaseMmsColumns.TRANSACTION_ID:
           transactionId = null;  // TODO: convert to byte array
           break;
         default:
-          super.readAttribute(parser, i);
+          super.readAttribute(attribute, value);
       }
     }
 
@@ -340,9 +348,11 @@ public abstract class XmlBackupItem {
       for (int i=0, count=parser.getAttributeCount(); i<count; i++) {
         switch (parser.getAttributeName(i)) {
           case Telephony.Mms.Part.CONTENT_TYPE:
+            Log.w("XmlBackupItem", "mime = " + parser.getAttributeValue(i));
             mime = parser.getAttributeValue(i);
             break;
           case Telephony.Mms.Part.TEXT:
+            Log.w("XmlBackupItem", "text = " + parser.getAttributeValue(i));
             text = parser.getAttributeValue(i);
             break;
           default:
@@ -365,6 +375,7 @@ public abstract class XmlBackupItem {
     public long getMessageSize() {
       return messageSize;
     }
+
     public long getExpiry() {
       return expiry;
     }
@@ -406,13 +417,13 @@ public abstract class XmlBackupItem {
 //      storeAttribute(writer, BaseMmsColumns.MESSAGE_CLASS, "personal");
 //      storeAttribute(writer, BaseMmsColumns.DELIVERY_TIME, null);
 //      storeAttribute(writer, BaseMmsColumns.READ_STATUS, null);
-//      storeAttribute(writer, BaseMmsColumns.CONTENT_TYPE, "application/vnd.wap.multipart.related");
+      storeAttribute(writer, BaseMmsColumns.CONTENT_TYPE, "application/vnd.wap.multipart.related");
 //      storeAttribute(writer, BaseMmsColumns.SUBSCRIPTION_ID, 0);
 //      storeAttribute(writer, BaseMmsColumns.RETRIEVE_TEXT_CHARSET, null);
 //      storeAttribute(writer, BaseMmsColumns.DELIVERY_REPORT, 128);
 //      storeAttribute(writer, BaseMmsColumns.MESSAGE_ID, "NOKASDF0000900002");
 //      storeAttribute(writer, BaseMmsColumns.SEEN, 1);
-//      storeAttribute(writer, BaseMmsColumns.MESSAGE_TYPE, 132);
+      storeAttribute(writer, BaseMmsColumns.MESSAGE_TYPE, extract);
 //      storeAttribute(writer, BaseMmsColumns.MMS_VERSION, 17);
       storeAttribute(writer, BaseMmsColumns.EXPIRY, expiry);
 //      storeAttribute(writer, BaseMmsColumns.PRIORITY, 129);
@@ -431,6 +442,8 @@ public abstract class XmlBackupItem {
       writer.newLine();
 
       // store message text only
+      writer.write(OPEN_TAG_PARTS);
+      writer.newLine();
       writer.write(OPEN_TAG_PART);
 
       storeAttribute(writer, Telephony.Mms.Part.SEQ, 0);
@@ -448,6 +461,8 @@ public abstract class XmlBackupItem {
 //      storeAttribute(writer, SIZE, null);
 
       writer.write(CLOSE_EMPTY_TAG);
+      writer.newLine();
+      writer.write(CLOSE_TAG_PARTS);
       writer.newLine();
 
       writer.write(CLOSE_TAG_MMS);

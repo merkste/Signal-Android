@@ -24,13 +24,15 @@ public class XmlBackup {
       if (parser.getEventType() != XmlPullParser.START_TAG) {
         continue;
       }
-      if (!parser.getName().equalsIgnoreCase("sms")) {
-        continue;
-      }
       if (parser.getAttributeCount() <= 0) {
         continue;
       }
-      return new XmlBackupItem.Sms(parser);
+      if (parser.getName().equalsIgnoreCase("sms")) {
+        return new XmlBackupItem.Sms(parser);
+      }
+      if (parser.getName().equalsIgnoreCase("mms")) {
+        return new XmlBackupItem.Mms(parser);
+      }
     }
     return null;
   }

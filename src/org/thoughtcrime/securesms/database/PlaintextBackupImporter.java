@@ -46,7 +46,7 @@ public class PlaintextBackupImporter {
   private static void importPlaintext(Context context, MasterSecret masterSecret)
       throws IOException
   {
-    Log.w("PlaintextBackupImporter", "importPlaintext()");
+    Log.w("PlaintextBackupImporter", "importPlaintext() Does ist work?");
     SmsDatabase    smsDatabase    = DatabaseFactory.getSmsDatabase(context);
     SQLiteDatabase smsTransaction = smsDatabase.beginTransaction();
     MmsDatabase    mmsDatabase    = DatabaseFactory.getMmsDatabase(context);
@@ -62,8 +62,10 @@ public class PlaintextBackupImporter {
       while ((msg = backup.getNext()) != null) {
         if (msg.getAddress() == null || msg.getAddress().equals("null"))
           continue;
-        if (!isAppropriateTypeForImport(msg.getType()))
+        if (!isAppropriateTypeForImport(msg.getType())) {
+          Log.w("PlaintextBackupImporter", "inappropriate type for import");
           continue; // TODO: check whether this is sound for MMS as well
+        }
 
         long threadId;
         if (msg.getThreadAddress() != null) {
@@ -74,11 +76,14 @@ public class PlaintextBackupImporter {
         }
 
         SQLiteStatement statement;
+        // TODO: reuse precompiled statements
         if (msg instanceof XmlBackupItem.Sms) {
+          Log.w("PlaintextBackupImporter", "importing sms");
           statement = smsDatabase.createInsertStatement(smsTransaction);
           addMsgToStatement(statement, (XmlBackupItem.Sms) msg, threadId, masterCipher);
         } else {
-          statement = smsDatabase.createInsertStatement(mmsTransaction);
+          Log.w("PlaintextBackupImporter", "importing mms");
+          statement = mmsDatabase.createInsertStatement(mmsTransaction);
           addMsgToStatement(statement, (XmlBackupItem.Mms) msg, threadId, masterCipher);
         }
         statement.execute();
@@ -125,6 +130,7 @@ public class PlaintextBackupImporter {
     addNullToStatement(statement, 6);                                        // MESSAGE_ID
     addStringToStatement(statement, 7, mms.getSubject());                    // SUBJECT
     addNullToStatement(statement, 8);                                        // SUBJECT_CHARSET
+    Log.w("body", mms.getBody());
     addEncryptedStingToStatement(masterCipher, statement, 9, mms.getBody()); // BODY
     addLongToStatement(statement, 10, mms.getPartCount());                   // PART_COUNT
     addNullToStatement(statement, 11);                                       // CONTENT_TYPE
@@ -140,7 +146,7 @@ public class PlaintextBackupImporter {
     addNullToStatement(statement, 21);                                       // READ_REPORT
     addNullToStatement(statement, 22);                                       // REPORT_ALLOWED
     addNullToStatement(statement, 23);                                       // RESPONSE_STATUS
-    addLongToStatement(statement, 24, mms.getStatus());                      // STATUS  TODO: check mms/sms status
+    addStringToStatement(statement, 24, String.valueOf(mms.getStatus()));                      // STATUS  TODO: check mms/sms status, handle null values
     addStringToStatement(statement, 25, mms.getTransactionId());             // TRANSACTION_ID
     addNullToStatement(statement, 26);                                       // RETRIEVE_STATUS
     addNullToStatement(statement, 27);                                       // RETRIEVE_TEXT
